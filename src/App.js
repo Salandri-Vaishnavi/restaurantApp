@@ -11,10 +11,13 @@ const App = () => {
 
   useEffect(() => {
     const getRestaurantData = async () => {
-      const response = await fetch(API_URL)
-      const data = await response.json()
-
-      setRestaurantData(data[0])
+      try {
+        const response = await fetch(API_URL)
+        const data = await response.json()
+        setRestaurantData(data[0])
+      } catch (error) {
+        console.error('Unable to fetch restaurant menu:', error)
+      }
     }
 
     getRestaurantData()
@@ -23,13 +26,11 @@ const App = () => {
   const updateQuantity = (dishId, value) => {
     setCart(prevCart => {
       const currentQuantity = prevCart[dishId] || 0
+      const newQuantity = currentQuantity + value
 
-      // Don't allow quantity to go below 0
-      if (value === -1 && currentQuantity === 0) {
+      if (newQuantity < 0) {
         return prevCart
       }
-
-      const newQuantity = currentQuantity + value
 
       return {
         ...prevCart,
@@ -38,9 +39,8 @@ const App = () => {
     })
   }
 
-  const getCartCount = () => {
-    return Object.values(cart).reduce((total, quantity) => total + quantity, 0)
-  }
+  const getCartCount = () =>
+    Object.values(cart).reduce((total, quantity) => total + quantity, 0)
 
   if (restaurantData === null) {
     return (
@@ -50,13 +50,12 @@ const App = () => {
     )
   }
 
-  const categories = restaurantData.table_menu_list
+  const categories = restaurantData.table_menu_list || []
   const selectedCategory = categories[activeCategory]
-  const dishes = selectedCategory.category_dishes
+  const dishes = selectedCategory ? selectedCategory.category_dishes || [] : []
 
   return (
     <div className="restaurant-container">
-      {/* Header */}
       <header className="header">
         <h1>{restaurantData.restaurant_name}</h1>
 
@@ -65,13 +64,11 @@ const App = () => {
 
           <div className="cart-container">
             <span className="cart-icon">🛒</span>
-
             <span className="cart-count">{getCartCount()}</span>
           </div>
         </div>
       </header>
 
-      {/* Categories */}
       <div className="categories-container">
         {categories.map((category, index) => (
           <button
@@ -89,7 +86,6 @@ const App = () => {
         ))}
       </div>
 
-      {/* Dishes */}
       <main className="menu-container">
         {dishes.map(dish => {
           const quantity = cart[dish.dish_id] || 0
@@ -119,32 +115,53 @@ const App = () => {
 
                 <p className="calories">{dish.dish_calories} calories</p>
 
-                {dish.addonCat.length > 0 && dish.dish_Availability && (
-                  <p className="customization">Customizations available</p>
-                )}
+                {dish.addonCat &&
+                  dish.addonCat.length > 0 &&
+                  dish.dish_Availability && (
+                    <p className="customization">Customizations available</p>
+                  )}
 
                 {!dish.dish_Availability && (
                   <p className="unavailable">Not available</p>
                 )}
 
                 {dish.dish_Availability && (
-                  <div className="quantity-container">
-                    <button
-                      type="button"
-                      onClick={() => updateQuantity(dish.dish_id, -1)}
-                    >
-                      -
-                    </button>
+                  <>
+                    <div className="quantity-container">
+                      <button
+                        type="button"
+                        onClick={() => updateQuantity(dish.dish_id, -1)}
+                        aria-label={`Decrease ${dish.dish_name}`}
+                      >
+                        -
+                      </button>
 
-                    <p>{quantity}</p>
+                      <p>{quantity}</p>
 
-                    <button
-                      type="button"
-                      onClick={() => updateQuantity(dish.dish_id, 1)}
-                    >
-                      +
-                    </button>
-                  </div>
+                      <button
+                        type="button"
+                        onClick={() => updateQuantity(dish.dish_id, 1)}
+                        aria-label={`Increase ${dish.dish_name}`}
+                      >
+                        +
+                      </button>
+                    </div>
+
+                    {quantity > 0 && (
+                      <button
+                        type="button"
+                        className="add-cart-button"
+                        onClick={() => {
+                          setCart(prevCart => ({
+                            ...prevCart,
+                            [dish.dish_id]: 0,
+                          }))
+                        }}
+                      >
+                        ADD TO CART
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
 
